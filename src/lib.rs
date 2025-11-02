@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 use crate::job::job_data::ListOfUuids;
 #[cfg(feature = "has_bytes")]
 use crate::job::job_data_prost::ListOfUuids;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Offset, TimeZone, Utc};
 use croner::Cron;
 use croner::parser::CronParser;
 #[cfg(not(feature = "has_bytes"))]
@@ -164,6 +164,37 @@ impl JobStoredData {
 
     pub fn set_last_tick(&mut self, tick: Option<DateTime<Utc>>) {
         self.last_tick = tick.map(|t| t.timestamp() as u64);
+    }
+
+    pub fn get_timezone(&self) -> Result<chrono_tz::Tz, JobSchedulerError> {
+        // Try to parse as timezone name first, then fall back to common timezone identifiers
+        if self.timezone_id.is_empty() {
+            return Ok(chrono_tz::UTC);
+        }
+        
+        // Handle debug format like "Tz(\"Europe/Dublin\")"
+        let tz_name = if self.timezone_id.starts_with("Tz(\"") {
+            self.timezone_id.trim_start_matches("Tz(\"").trim_end_matches("\")")
+        } else {
+            &self.timezone_id
+        };
+        
+        tz_name.parse::<chrono_tz::Tz>()
+            .map_err(|_| JobSchedulerError::ParseSchedule)
+    }
+
+    pub fn get_current_offset(&self) -> i32 {
+        if self.timezone_id.is_empty() {
+            return 0;
+        }
+        
+        self.get_timezone()
+            .map(|tz| {
+                tz.offset_from_utc_datetime(&Utc::now().naive_local())
+                    .fix()
+                    .local_minus_utc()
+            })
+            .unwrap_or(0)
     }
 }
 

@@ -4,7 +4,7 @@ use crate::context::Context;
 use crate::job::job_data::{JobState, JobType};
 #[cfg(feature = "has_bytes")]
 use crate::job::job_data_prost::{JobState, JobType};
-use chrono::{FixedOffset, Utc};
+use chrono::Utc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -180,13 +180,12 @@ impl Scheduler {
                             Ok(Some(job)) => {
                                 let job_type: JobType = JobType::from_i32(job.job_type).unwrap();
                                 let schedule = job.schedule();
-                                let fixed_offset = FixedOffset::east_opt(job.time_offset_seconds)
-                                    .unwrap_or(FixedOffset::east_opt(0).unwrap());
-                                let now = now.with_timezone(&fixed_offset);
+                                let timezone = job.get_timezone().unwrap_or(chrono_tz::UTC);
+                                let now = now.with_timezone(&timezone);
                                 let repeated_every = job.repeated_every();
                                 let next_tick = job
                                     .next_tick_utc()
-                                    .map(|nt| nt.with_timezone(&fixed_offset));
+                                    .map(|nt| nt.with_timezone(&timezone));
                                 let next_tick = match job_type {
                                     JobType::Cron => {
                                         schedule.and_then(|s| s.iter_after(now).next())

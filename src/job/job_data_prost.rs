@@ -38,8 +38,8 @@ pub struct JobStoredData {
     pub ran: bool,
     #[prost(bool, tag = "11")]
     pub stopped: bool,
-    #[prost(int32, tag = "12")]
-    pub time_offset_seconds: i32,
+    #[prost(string, tag = "12")]
+    pub timezone_id: ::prost::alloc::string::String,
     #[prost(oneof = "job_stored_data::Job", tags = "6, 7")]
     pub job: ::core::option::Option<job_stored_data::Job>,
 }
